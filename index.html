@@ -3,225 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ドライブフォルダ内 授業レポート統合ビューア</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            bg: '#0f172a',
-                            card: '#1e293b',
-                            border: '#334155',
-                            text: '#f8fafc',
-                            muted: '#94a3b8'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
+    <title>講義アーカイブ - AI要約ビューア</title>
     <style>
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f1f3f4;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-completed {
+            background-color: #e6f4ea;
+            color: #137333;
+        }
+        .status-pending {
+            background-color: #fef7e0;
+            color: #b06000;
+        }
+        .preview-box {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-dark-bg text-slate-800 dark:text-dark-text min-h-screen flex flex-col transition-colors duration-200">
+<body>
 
-    <!-- ヘッダー -->
-    <header class="bg-white dark:bg-dark-card border-b border-slate-200 dark:border-dark-border sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center space-x-3">
-                <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold shadow-md">📁</div>
-                <div>
-                    <h1 id="app-title" class="text-lg font-bold text-slate-900 dark:text-white">ドライブフォルダ統合ビューア</h1>
-                    <p id="app-subtitle" class="text-xs text-slate-500 dark:text-dark-muted">フォルダ内の全ドキュメントを自動スキャン中...</p>
-                </div>
-            </div>
-            
-            <div class="flex items-center space-x-3">
-                <button id="refresh-btn" class="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-xs font-medium px-3 py-2 rounded-lg transition border border-indigo-200 dark:border-indigo-800 flex items-center space-x-1">
-                    <span>🔄 ドライブから再同期</span>
-                </button>
-                <button id="theme-toggle" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="ダークモード切替">
-                    🌙
-                </button>
-            </div>
-        </div>
-    </header>
+<div class="container">
+    <h1>📚 講義アーカイブ AI要約ビューア</h1>
+    
+    <div id="loading" class="loading">データを読み込んでいます...</div>
+    
+    <table id="archiveTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>授業日 (I列)</th>
+                <th>タイトル (F列)</th>
+                <th>更新ステータス (X列)</th>
+                <th>AI要約リンク (L列)</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <!-- 動的に挿入されます -->
+        </tbody>
+    </table>
 
-    <!-- メインレイアウト -->
-    <div class="max-w-7xl mx-auto flex-1 w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        
-        <!-- サイドバー（ドキュメント・ファイル一覧） -->
-        <aside class="lg:col-span-1 bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border shadow-sm p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto flex flex-col">
-            <div class="mb-4">
-                <label for="search-input" class="block text-xs font-semibold text-slate-500 dark:text-dark-muted mb-1">ファイル内検索</label>
-                <input type="text" id="search-input" placeholder="キーワードで絞り込み..." class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-dark-text">
-            </div>
-
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-dark-muted mb-2">ドライブ内ドキュメント一覧</h2>
-            <div id="file-list" class="space-y-1 overflow-y-auto flex-1">
-                <div class="text-xs text-slate-400 p-3 text-center">読み込み中...</div>
-            </div>
-        </aside>
-
-        <!-- コンテンツ表示エリア -->
-        <main class="lg:col-span-3 bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-dark-border shadow-sm p-6 md:p-8 min-h-[600px] flex flex-col">
-            <div id="content-area" class="flex-1">
-                <div class="text-center py-20">
-                    <div class="text-5xl mb-4 animate-pulse">📖</div>
-                    <h2 class="text-xl font-bold text-slate-700 dark:text-slate-200 mb-2">ドキュメントを選択してください</h2>
-                    <p class="text-sm text-slate-500 dark:text-dark-muted max-w-md mx-auto">
-                        左側のサイドバーから閲覧したいファイルを選択すると、その内容がここに表示されます。
-                    </p>
-                </div>
-            </div>
-        </main>
+    <div id="previewArea" class="preview-box" style="display: none;">
+        <h3 id="previewTitle" style="margin-top:0;"></h3>
+        <p>リンク先ドキュメントを開いて詳細を確認できます。</p>
+        <p><a id="previewLink" href="" target="_blank" rel="noopener noreferrer">Googleドキュメントを新しいタブで開く ↗</a></p>
     </div>
+</div>
 
-    <!-- フッター -->
-    <footer class="text-center py-4 text-xs text-slate-400 dark:text-dark-muted border-t border-slate-200 dark:border-dark-border mt-auto">
-        授業レポート統合システム &copy; 2026
-    </footer>
+<script>
+    // 運用中のGASウェブアプリのURLに書き換えてください
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw1PxcYIvZrRub7oXi7r3hherVBrr06N75ndq-eqjltBoIi4VPwFa9pd6ssr6AdrIx38g/exec;
 
-    <!-- アプリケーションスクリプト -->
-    <script>
-        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxXwaNQN5Ur3O_srGG0_7E61dO41L8KcWPUWxjHVLhh1WrwtHXWwkKEM3zI3YNN9B5T/exec";
+    async function fetchArchiveData() {
+        try {
+            const response = await fetch(GAS_API_URL);
+            const data = await response.json();
+            
+            renderTable(data);
+        } catch (error) {
+            console.error('データの取得に失敗しました:', error);
+            document.getElementById('loading').innerText = 'データの取得に失敗しました。URLやデプロイ設定を確認してください。';
+        }
+    }
 
-        let driveData = { documents: [] };
-        let currentSelectedDocId = null;
+    function renderTable(data) {
+        const loadingEl = document.getElementById('loading');
+        const tableEl = document.getElementById('archiveTable');
+        const tbodyEl = document.getElementById('tableBody');
 
-        document.addEventListener('DOMContentLoaded', () => {
-            initTheme();
-            fetchDriveFolderData();
+        loadingEl.style.display = 'none';
+        tableEl.style.display = 'table';
+        tbodyEl.innerHTML = '';
 
-            document.getElementById('refresh-btn').addEventListener('click', () => {
-                fetchDriveFolderData();
-            });
-
-            document.getElementById('search-input').addEventListener('input', (e) => {
-                filterDocuments(e.target.value);
-            });
-
-            document.getElementById('theme-toggle').addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
-                localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-            });
-        });
-
-        async function fetchDriveFolderData() {
-            if (!GAS_API_URL || GAS_API_URL.includes("YOUR_GAS")) {
-                loadFallbackData();
-                return;
-            }
-
-            try {
-                document.getElementById('app-subtitle').textContent = "Googleドライブから同期中...";
-                const response = await fetch(GAS_API_URL, {
-                    method: 'GET',
-                    redirect: 'follow'
-                });
-                const data = await response.json();
-                console.log("GASからのレスポンス:", data);
-
-                const docs = Array.isArray(data) ? data : (data && data.documents ? data.documents : []);
-
-                if (docs.length > 0) {
-                    driveData = { documents: docs };
-                    renderApp(driveData);
-                    document.getElementById('app-subtitle').textContent = `同期完了 (${docs.length}件のファイル)`;
-                } else {
-                    console.warn("取得したドキュメントが0件です。");
-                    document.getElementById('app-subtitle').textContent = "同期完了 (0件のファイル - スプレッドシートを確認してください)";
-                }
-            } catch (err) {
-                console.error("ドライブからの取得に失敗しました:", err);
-                document.getElementById('app-subtitle').textContent = "接続エラー (コンソールを確認してください)";
-            }
+        if (!data || data.length === 0) {
+            tbodyEl.innerHTML = '<tr><td colspan="4" style="text-align:center;">AI要約リンクが設定されたデータが見つかりませんでした。</td></tr>';
+            return;
         }
 
-        function loadFallbackData() {
-            driveData = {
-                documents: [
-                    {
-                        id: "doc-1",
-                        title: "授業レポート 2026【編集Ⅰ(前期)_5b229061】",
-                        content: `<h2 class="text-2xl font-bold mb-4 text-indigo-600 dark:text-indigo-400">授業レポート 2026【編集Ⅰ(前期)_5b229061】</h2><p class="mb-4 text-slate-600 dark:text-slate-300">サンプルデータです。</p>`
-                    }
-                ]
-            };
-            renderApp(driveData);
-            document.getElementById('app-subtitle').textContent = "サンプルモードで表示中";
-        }
+        data.forEach(item => {
+            const tr = document.createElement('tr');
+            
+            // ステータスに応じたバッジのクラス切替（X列の「完了」などに対応）
+            const isCompleted = item.status === "完了";
+            const badgeClass = isCompleted ? "status-badge status-completed" : "status-badge status-pending";
+            const statusText = item.status || "未処理";
 
-        function initTheme() {
-            if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            }
-        }
-
-        function renderApp(data) {
-            renderFileList(data.documents);
-            if (data.documents.length > 0) {
-                if (!currentSelectedDocId || !data.documents.some(d => d.id === currentSelectedDocId)) {
-                    selectDocument(data.documents[0].id);
-                } else {
-                    selectDocument(currentSelectedDocId);
-                }
-            }
-        }
-
-        function renderFileList(documents) {
-            const container = document.getElementById('file-list');
-            container.innerHTML = '';
-
-            documents.forEach(doc => {
-                const docBtn = document.createElement('button');
-                docBtn.className = `w-full text-left text-sm px-3 py-2.5 rounded-lg transition flex items-center space-x-2 truncate ${currentSelectedDocId === doc.id ? 'bg-indigo-600 text-white font-medium shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'}`;
-                docBtn.innerHTML = `<span>📄</span><span class="truncate">${doc.title}</span>`;
-                docBtn.onclick = () => selectDocument(doc.id);
-                container.appendChild(docBtn);
-            });
-        }
-
-        function selectDocument(docId) {
-            currentSelectedDocId = docId;
-            const doc = driveData.documents.find(d => d.id === docId);
-            if (!doc) return;
-
-            renderFileList(driveData.documents);
-
-            const contentArea = document.getElementById('content-area');
-            contentArea.innerHTML = `
-                <div class="mb-4 pb-4 border-b border-slate-200 dark:border-dark-border flex items-center justify-between">
-                    <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-md">
-                        📂 Googleドライブ連動ファイル
-                    </span>
-                    <span class="text-xs text-slate-400 dark:text-dark-muted">ID: ${doc.id}</span>
-                </div>
-                <div class="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed">
-                    ${doc.content}
-                </div>
+            tr.innerHTML = `
+                <td>${escapeHtml(item.date)}</td>
+                <td>${escapeHtml(item.title || '（タイトルなし）')}</td>
+                <td><span class="${badgeClass}">${escapeHtml(statusText)}</span></td>
+                <td>
+                    <a href="${escapeHtml(item.summaryLink)}" target="_blank" rel="noopener noreferrer">
+                        ドキュメントを開く ↗
+                    </a>
+                </td>
             `;
-        }
+            
+            // 行クリックで下部プレビューエリアに表示
+            tr.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return; // リンククリック時はプレビュー切り替えをスキップ
+                showPreview(item);
+            });
 
-        function filterDocuments(keyword) {
-            if (!keyword.trim()) {
-                renderFileList(driveData.documents);
-                return;
-            }
-            const lower = keyword.toLowerCase();
-            const filtered = driveData.documents.filter(d => 
-                d.title.toLowerCase().includes(lower) || d.content.toLowerCase().includes(lower)
-            );
-            renderFileList(filtered);
-        }
-    </script>
+            tbodyEl.appendChild(tr);
+        });
+    }
+
+    function showPreview(item) {
+        const previewArea = document.getElementById('previewArea');
+        const previewTitle = document.getElementById('previewTitle');
+        const previewLink = document.getElementById('previewLink');
+
+        previewTitle.innerText = `${item.date || ''} - ${item.title || '詳細データ'}`;
+        previewLink.href = item.summaryLink;
+        previewArea.style.display = 'block';
+        previewArea.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/<id>/g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // 読み込み実行
+    fetchArchiveData();
+</script>
+
 </body>
 </html>
