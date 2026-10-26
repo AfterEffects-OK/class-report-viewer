@@ -126,10 +126,20 @@
                 document.getElementById('app-subtitle').textContent = "Googleドライブから同期中...";
                 const response = await fetch(GAS_API_URL);
                 const data = await response.json();
-                if (data && data.documents) {
-                    driveData = data;
+                
+                // データを正しく受け取れているかコンソールで確認できるようにする
+                console.log("GASからのレスポンス:", data);
+
+                // 配列形式、またはオブジェクト内の documents プロパティのどちらにも対応
+                const docs = Array.isArray(data) ? data : (data && data.documents ? data.documents : []);
+
+                if (docs.length > 0) {
+                    driveData = { documents: docs };
                     renderApp(driveData);
-                    document.getElementById('app-subtitle').textContent = `同期完了 (${driveData.documents.length}件のファイル)`;
+                    document.getElementById('app-subtitle').textContent = `同期完了 (${docs.length}件のファイル)`;
+                } else {
+                    console.warn("取得したドキュメントが0件です。フォールバックデータに切り替えます。");
+                    loadFallbackData(); // 万が一0件ならサンプルを表示して確認
                 }
             } catch (err) {
                 console.warn("ドライブからの取得に失敗したため、サンプルデータを使用します。", err);
