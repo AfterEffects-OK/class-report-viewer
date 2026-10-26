@@ -5,191 +5,168 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>講義アーカイブ - AI要約ビューア</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f9f9f9;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            font-size: 20px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-            font-size: 14px;
-        }
-        th {
-            background-color: #f1f3f4;
-            font-weight: bold;
-        }
-        tr:hover {
-            background-color: #f8f9fa;
-        }
-        a {
-            color: #1a73e8;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .status-completed {
-            background-color: #e6f4ea;
-            color: #137333;
-        }
-        .status-pending {
-            background-color: #fef7e0;
-            color: #b06000;
-        }
-        .preview-box {
-            margin-top: 30px;
-            padding: 20px;
-            border: 1px solid #dadce0;
-            border-radius: 8px;
-            background-color: #f8f9fa;
-        }
+        body { font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+        th { background-color: #f1f3f4; font-weight: bold; }
+        tr:hover { background-color: #f8f9fa; cursor: pointer; }
+        a { color: #1a73e8; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status-completed { background-color: #e6f4ea; color: #137333; }
+        .status-pending { background-color: #fef7e0; color: #b06000; }
+        .preview-box { margin-top: 30px; padding: 20px; border: 1px solid #dadce0; border-radius: 8px; background-color: #f8f9fa; }
+        /* ページネーション用スタイル */
+        .pagination { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 8px; }
+        .pagination button { padding: 6px 12px; border: 1px solid #dadce0; background-color: #fff; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .pagination button:hover:not(:disabled) { background-color: #f1f3f4; }
+        .pagination button:disabled { background-color: #f8f9fa; color: #ccc; cursor: not-allowed; }
+        .pagination span { font-size: 14px; color: #5f6368; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>📚 講義アーカイブ AI要約ビューア</h1>
+        <div id="loading" class="loading">データを読み込んでいます...</div>
+        
+        <table id="archiveTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>授業日 (I列)</th>
+                    <th>タイトル (F列)</th>
+                    <th>更新ステータス (X列)</th>
+                    <th>AI要約リンク (L列)</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- 動的に挿入されます -->
+            </tbody>
+        </table>
 
-<div class="container">
-    <h1>📚 講義アーカイブ AI要約ビューア</h1>
-    
-    <div id="loading" class="loading">データを読み込んでいます...</div>
-    
-    <table id="archiveTable" style="display: none;">
-        <thead>
-            <tr>
-                <th>授業日 (I列)</th>
-                <th>タイトル (F列)</th>
-                <th>更新ステータス (X列)</th>
-                <th>AI要約リンク (L列)</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <!-- 動的に挿入されます -->
-        </tbody>
-    </table>
+        <!-- ページネーションコントロール -->
+        <div id="paginationContainer" class="pagination" style="display: none;">
+            <button id="prevBtn" onclick="changePage(-1)">前へ</button>
+            <span id="pageInfo">1 / 1 ページ</span>
+            <button id="nextBtn" onclick="changePage(1)">次へ</button>
+        </div>
 
-    <div id="previewArea" class="preview-box" style="display: none;">
-        <h3 id="previewTitle" style="margin-top:0;"></h3>
-        <p>リンク先ドキュメントを開いて詳細を確認できます。</p>
-        <p><a id="previewLink" href="" target="_blank" rel="noopener noreferrer">Googleドキュメントを新しいタブで開く ↗</a></p>
+        <div id="previewArea" class="preview-box" style="display: none;">
+            <h3 id="previewTitle" style="margin-top:0;"></h3>
+            <p>リンク先ドキュメントを開いて詳細を確認できます。</p>
+            <p><a id="previewLink" href="" target="_blank" rel="noopener noreferrer">Googleドキュメントを新しいタブで開く ↗</a></p>
+        </div>
     </div>
-</div>
 
-<script>
-    // 運用中のGASウェブアプリのURLに書き換えてください
-    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw1PxcYIvZrRub7oXi7r3hherVBrr06N75ndq-eqjltBoIi4VPwFa9pd6ssr6AdrIx38g/exec;
+    <script>
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw1PxcYIvZrRub7oXi7r3hherVBrr06N75ndq-eqjltBoIi4VPwFa9pd6ssr6AdrIx38g/exec';
+        
+        let allData = [];
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 12; // 1ページあたり12件表示
 
-    async function fetchArchiveData() {
-        try {
-            const response = await fetch(GAS_API_URL);
-            const data = await response.json();
-            
-            renderTable(data);
-        } catch (error) {
-            console.error('データの取得に失敗しました:', error);
-            document.getElementById('loading').innerText = 'データの取得に失敗しました。URLやデプロイ設定を確認してください。';
-        }
-    }
-
-    function renderTable(data) {
-        const loadingEl = document.getElementById('loading');
-        const tableEl = document.getElementById('archiveTable');
-        const tbodyEl = document.getElementById('tableBody');
-
-        loadingEl.style.display = 'none';
-        tableEl.style.display = 'table';
-        tbodyEl.innerHTML = '';
-
-        if (!data || data.length === 0) {
-            tbodyEl.innerHTML = '<tr><td colspan="4" style="text-align:center;">AI要約リンクが設定されたデータが見つかりませんでした。</td></tr>';
-            return;
+        async function fetchArchiveData() {
+            try {
+                const response = await fetch(GAS_API_URL);
+                allData = await response.json();
+                renderTable();
+            } catch (error) {
+                console.error('データの取得に失敗しました:', error);
+                document.getElementById('loading').innerText = 'データの取得に失敗しました。URLやデプロイ設定を確認してください。';
+            }
         }
 
-        data.forEach(item => {
-            const tr = document.createElement('tr');
-            
-            // ステータスに応じたバッジのクラス切替（X列の「完了」などに対応）
-            const isCompleted = item.status === "完了";
-            const badgeClass = isCompleted ? "status-badge status-completed" : "status-badge status-pending";
-            const statusText = item.status || "未処理";
+        function renderTable() {
+            const loadingEl = document.getElementById('loading');
+            const tableEl = document.getElementById('archiveTable');
+            const tbodyEl = document.getElementById('tableBody');
+            const paginationEl = document.getElementById('paginationContainer');
 
-            tr.innerHTML = `
-                <td>${escapeHtml(item.date)}</td>
-                <td>${escapeHtml(item.title || '（タイトルなし）')}</td>
-                <td><span class="${badgeClass}">${escapeHtml(statusText)}</span></td>
-                <td>
-                    <a href="${escapeHtml(item.summaryLink)}" target="_blank" rel="noopener noreferrer">
-                        ドキュメントを開く ↗
-                    </a>
-                </td>
-            `;
-            
-            // 行クリックで下部プレビューエリアに表示
-            tr.addEventListener('click', (e) => {
-                if (e.target.tagName === 'A') return; // リンククリック時はプレビュー切り替えをスキップ
-                showPreview(item);
+            loadingEl.style.display = 'none';
+            tableEl.style.display = 'table';
+
+            if (!allData || allData.length === 0) {
+                tbodyEl.innerHTML = '<tr><td colspan="4" style="text-align:center;">AI要約リンクが設定されたデータが見つかりませんでした。</td></tr>';
+                paginationEl.style.display = 'none';
+                return;
+            }
+
+            // ページネーション計算
+            const totalPages = Math.ceil(allData.length / ITEMS_PER_PAGE);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+            const currentItems = allData.slice(startIndex, endIndex);
+
+            // テーブル行の描画
+            tbodyEl.innerHTML = '';
+            currentItems.forEach(item => {
+                const tr = document.createElement('tr');
+                const isCompleted = item.status === "完了";
+                const badgeClass = isCompleted ? "status-badge status-completed" : "status-badge status-pending";
+                const statusText = item.status || "未処理";
+
+                tr.innerHTML = `
+                    <td>${escapeHtml(item.date)}</td>
+                    <td>${escapeHtml(item.title || '（タイトルなし）')}</td>
+                    <td><span class="${badgeClass}">${escapeHtml(statusText)}</span></td>
+                    <td>
+                        <a href="${escapeHtml(item.summaryLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">
+                            ドキュメントを開く ↗
+                        </a>
+                    </td>
+                `;
+                
+                tr.addEventListener('click', (e) => {
+                    showPreview(item);
+                });
+                
+                tbodyEl.appendChild(tr);
             });
 
-            tbodyEl.appendChild(tr);
-        });
-    }
+            // ページネーションUIの更新
+            if (totalPages > 1) {
+                paginationEl.style.display = 'flex';
+                document.getElementById('pageInfo').innerText = `${currentPage} / ${totalPages} ページ (${allData.length}件中)`;
+                document.getElementById('prevBtn').disabled = currentPage === 1;
+                document.getElementById('nextBtn').disabled = currentPage === totalPages;
+            } else {
+                paginationEl.style.display = 'none';
+            }
+        }
 
-    function showPreview(item) {
-        const previewArea = document.getElementById('previewArea');
-        const previewTitle = document.getElementById('previewTitle');
-        const previewLink = document.getElementById('previewLink');
+        function changePage(direction) {
+            currentPage += direction;
+            renderTable();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
 
-        previewTitle.innerText = `${item.date || ''} - ${item.title || '詳細データ'}`;
-        previewLink.href = item.summaryLink;
-        previewArea.style.display = 'block';
-        previewArea.scrollIntoView({ behavior: 'smooth' });
-    }
+        function showPreview(item) {
+            const previewArea = document.getElementById('previewArea');
+            const previewTitle = document.getElementById('previewTitle');
+            const previewLink = document.getElementById('previewLink');
+            
+            previewTitle.innerText = `${item.date || ''} - ${item.title || '詳細データ'}`;
+            previewLink.href = item.summaryLink;
+            previewArea.style.display = 'block';
+            previewArea.scrollIntoView({ behavior: 'smooth' });
+        }
 
-    function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/<id>/g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
-    // 読み込み実行
-    fetchArchiveData();
-</script>
-
+        // 読み込み実行
+        fetchArchiveData();
+    </script>
 </body>
 </html>
