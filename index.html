@@ -1,445 +1,359 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>講義アーカイブ 検索ポータル</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
-    
-    body { 
-        font-family: 'Noto Sans JP', sans-serif; 
-        color: #f8fafc;
-        margin: 0;
-        min-height: 100vh;
-    }
-
-    .gemini-bg {
-        position: fixed;
-        top: 0; left: 0; width: 100vw; height: 100vh;
-        background-color: #050511; /* 深いダークインディゴのベース */
-        z-index: -1;
-        overflow: hidden;
-    }
-
-    .orb {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(100px);
-        opacity: 0.6;
-        animation: floatOrb 20s infinite alternate ease-in-out;
-    }
-
-    .orb-1 {
-        top: -10%; left: -10%; width: 50vw; height: 50vw;
-        background: radial-gradient(circle, rgba(79, 70, 229, 0.4) 0%, transparent 70%); /* インディゴ */
-    }
-
-    .orb-2 {
-        bottom: -20%; right: -10%; width: 60vw; height: 60vw;
-        background: radial-gradient(circle, rgba(147, 51, 234, 0.3) 0%, transparent 70%); /* パープル */
-        animation-delay: -5s;
-        animation-duration: 25s;
-    }
-
-    .orb-3 {
-        top: 30%; left: 40%; width: 40vw; height: 40vw;
-        background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%); /* スカイブルー */
-        animation-delay: -10s;
-        animation-duration: 18s;
-    }
-
-    @keyframes floatOrb {
-        0% { transform: translate(0, 0) scale(1); }
-        100% { transform: translate(8%, 8%) scale(1.15); }
-    }
-
-    .loading-pulse { animation: pulse-ring 1.5s infinite; }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.6); }
-      70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(129, 140, 248, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
-    }
-
-    .thumb-overlay { transition: opacity 0.3s ease; }
-    .group:hover .thumb-overlay { opacity: 1; }
-    
-    #suggestions { 
-        z-index: 1000;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-    }
-
-    /* Glassmorphism utility for cards */
-    .glass-panel {
-        background: rgba(255, 255, 255, 0.15); /* 明るさを上げて背景との区別を明確に */
-        backdrop-filter: blur(24px);
-        -webkit-backdrop-filter: blur(24px);
-        border: 1px solid rgba(255, 255, 255, 0.3); /* 境界線をはっきりとさせてエッジを強調 */
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2); /* 濃い影と上部のハイライトで立体感を追加 */
-    }
-
-    /* Footer text animations */
-    #journey-text { position: relative; cursor: default; }
-    #journey-text span,
-    #journey-text::after { transition: opacity 0.4s ease-in-out; }
-    #journey-text::after {
-        content: attr(data-ja);
-        position: absolute;
-        top: 0; left: 0; right: 0;
-        opacity: 0;
-        color: #cbd5e1;
-    }
-    #journey-text:hover span { opacity: 0; }
-    #journey-text:hover::after { opacity: 1; }
-
-    @keyframes badge-glow {
-      0%, 100% { box-shadow: 0 0 4px rgba(248, 113, 113, 0.6); transform: scale(1); }
-      50% { box-shadow: 0 0 12px rgba(248, 113, 113, 1); transform: scale(1.05); }
-    }
-    @keyframes sparkle-icon {
-      0%, 100% { transform: scale(1) rotate(0deg); color: #fff; }
-      50% { transform: scale(1.3) rotate(20deg); color: #fde047; }
-    }
-    @keyframes shine {
-      0% { left: -100%; }
-      20% { left: 100%; }
-      100% { left: 100%; }
-    }
-    .new-badge {
-      background-color: rgba(220, 38, 38, 0.8);
-      position: relative;
-      overflow: hidden;
-      animation: badge-glow 2s infinite ease-in-out;
-      color: white;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-      padding: 0.1rem 0.4rem; /* パディングを小さく */
-      border-radius: 9999px;
-      font-size: 0.65rem; /* 文字サイズをスマホと同じサイズに */
-      font-weight: bold;
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid rgba(255,255,255,0.2);
-    }
-    .new-badge::before {
-      content: '';
-      position: absolute;
-      top: 0; left: -100%; width: 100%; height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-      animation: shine 10s infinite;
-    }
-    .new-badge svg { animation: sparkle-icon 1.5s infinite ease-in-out; }
-
-    /* Custom Scrollbar for better dark mode look */
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>講義アーカイブ 検索ポータル</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; color: #f8fafc; margin: 0; min-height: 100vh; }
+        .gemini-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #050511; z-index: -1; overflow: hidden; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.6; animation: floatOrb 20s infinite alternate ease-in-out; }
+        .orb-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(79, 70, 229, 0.4) 0%, transparent 70%); }
+        .orb-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(147, 51, 234, 0.3) 0%, transparent 70%); animation-delay: -5s; animation-duration: 25s; }
+        .orb-3 { top: 30%; left: 40%; width: 40vw; height: 40vw; background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%); animation-delay: -10s; animation-duration: 18s; }
+        @keyframes floatOrb { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(8%, 8%) scale(1.15); } }
+        .loading-pulse { animation: pulse-ring 1.5s infinite; }
+        @keyframes pulse-ring { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.6); } 70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(129, 140, 248, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); } }
+        .thumb-overlay { transition: opacity 0.3s ease; }
+        .group:hover .thumb-overlay { opacity: 1; }
+        #suggestions { z-index: 1000; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+        .glass-panel { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+        #journey-text { position: relative; cursor: default; }
+        #journey-text span, #journey-text::after { transition: opacity 0.4s ease-in-out; }
+        #journey-text::after { content: attr(data-ja); position: absolute; top: 0; left: 0; right: 0; opacity: 0; color: #cbd5e1; }
+        #journey-text:hover span { opacity: 0; }
+        #journey-text:hover::after { opacity: 1; }
+        @keyframes badge-glow { 0%, 100% { box-shadow: 0 0 4px rgba(248, 113, 113, 0.6); transform: scale(1); } 50% { box-shadow: 0 0 12px rgba(248, 113, 113, 1); transform: scale(1.05); } }
+        @keyframes sparkle-icon { 0%, 100% { transform: scale(1) rotate(0deg); color: #fff; } 50% { transform: scale(1.3) rotate(20deg); color: #fde047; } }
+        @keyframes shine { 0% { left: -100%; } 20% { left: 100%; } 100% { left: 100%; } }
+        .new-badge { background-color: rgba(220, 38, 38, 0.8); position: relative; overflow: hidden; animation: badge-glow 2s infinite ease-in-out; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5); padding: 0.1rem 0.4rem; border-radius: 9999px; font-size: 0.65rem; font-weight: bold; display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,0.2); }
+        .new-badge::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent); animation: shine 10s infinite; }
+        .new-badge svg { animation: sparkle-icon 1.5s infinite ease-in-out; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+    </style>
 </head>
 <body class="flex flex-col antialiased">
-
-  <div class="gemini-bg">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
-
-  <main class="flex-grow w-full px-2 py-4 sm:px-6 lg:px-8 relative z-10">
-    <div id="statusArea" class="glass-panel rounded-2xl p-6 sm:p-8 text-center max-w-2xl mx-auto my-6 sm:my-12 shadow-2xl">
-      <div id="statusIcon" class="mx-auto w-16 h-16 bg-indigo-900/50 rounded-full flex items-center justify-center mb-4 loading-pulse border border-indigo-400/30">
-        <i data-lucide="database" class="w-8 h-8 text-indigo-300"></i>
-      </div>
-      <h2 id="statusTitle" class="text-lg font-bold text-white mb-2">アーカイブデータにアクセス中...</h2>
-      <p id="errorMsg" class="text-rose-400 text-sm mt-4 font-bold"></p>
+    <div class="gemini-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
     </div>
 
-    <div id="contentArea" class="hidden space-y-4 sm:space-y-6">
-      <!-- Search and Filter Bar -->
-      <div class="glass-panel rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col lg:flex-row gap-3">
-        <div class="flex-grow relative">
-          <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5"></i>
-          <input type="text" id="searchInput" placeholder="検索キーワードを入力..." class="w-full pl-11 pr-4 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition text-sm shadow-inner" oninput="handleSearchInput()" autocomplete="off">
-          <div id="suggestions" class="absolute w-full mt-2 bg-slate-800/90 border border-white/10 rounded-xl shadow-2xl hidden overflow-hidden"></div>
+    <!-- 🌐 追加したヘッダーセクション -->
+    <header class="w-full px-4 sm:px-8 py-6 relative z-10 border-b border-white/10 backdrop-blur-md bg-slate-900/40">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600/80 p-2.5 rounded-xl border border-indigo-400/30 shadow-lg">
+                    <i data-lucide="graduation-cap" class="w-7 h-7 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">講義アーカイブ 検索ポータル</h1>
+                    <p class="text-xs text-slate-400 mt-0.5">授業レポートや音声概要をスムーズに検索・閲覧できます</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs px-3 py-1.5 bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 rounded-full font-bold">
+                    全学科統合表示
+                </span>
+            </div>
         </div>
-        <div class="flex gap-2 flex-wrap">
-          <select id="lectureSelect" class="px-3 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white text-sm flex-1 focus:ring-2 focus:ring-indigo-500/50 focus:outline-none" onchange="filterData()">
-            <option value="all" class="bg-slate-800 text-white">講義名</option>
-          </select>
-          <select id="gradeSelect" class="px-3 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white text-sm focus:ring-2 focus:ring-indigo-500/50 focus:outline-none" onchange="filterData()">
-            <option value="all" class="bg-slate-800 text-white">学年</option>
-          </select>
-          <select id="sortSelect" class="px-3 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white text-sm focus:ring-2 focus:ring-indigo-500/50 focus:outline-none" onchange="filterData()">
-            <option value="授業日_desc" class="bg-slate-800 text-white">授業日 (新しい順)</option>
-            <option value="授業日_asc" class="bg-slate-800 text-white">授業日 (古い順)</option>
-            <option value="タイトル_asc" class="bg-slate-800 text-white">タイトル (昇順)</option>
-            <option value="講義名_asc" class="bg-slate-800 text-white">講義名 (昇順)</option>
-            <option value="講義名_desc" class="bg-slate-800 text-white">講義名 (降順)</option>
-          </select>
+    </header>
+
+    <main class="flex-grow w-full px-2 py-4 sm:px-6 lg:px-8 relative z-10">
+        <div id="statusArea" class="glass-panel rounded-2xl p-6 sm:p-8 text-center max-w-2xl mx-auto my-6 sm:my-12 shadow-2xl">
+            <div id="statusIcon" class="mx-auto w-16 h-16 bg-indigo-900/50 rounded-full flex items-center justify-center mb-4 loading-pulse border border-indigo-400/30">
+                <i data-lucide="database" class="w-8 h-8 text-indigo-300"></i>
+            </div>
+            <h2 id="statusTitle" class="text-lg font-bold text-white mb-2">アーカイブデータにアクセス中...</h2>
+            <p id="errorMsg" class="text-rose-400 text-sm mt-4 font-bold"></p>
         </div>
-      </div>
 
-      <div class="flex justify-between items-center px-1">
-        <div class="text-sm text-slate-300">
-          <span id="filteredCount" class="font-bold text-indigo-400">0</span> 件表示
+        <div id="contentArea" class="hidden space-y-4 sm:space-y-6">
+            <!-- Search and Filter Bar -->
+            <div class="glass-panel rounded-2xl p-3 sm:p-4 shadow-lg flex flex-col lg:flex-row gap-3">
+                <div class="flex-grow relative">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5"></i>
+                    <input type="text" id="searchInput" placeholder="検索キーワードを入力..." class="w-full pl-11 pr-4 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition text-sm shadow-inner" oninput="handleSearchInput()" autocomplete="off">
+                    <div id="suggestions" class="absolute w-full mt-2 bg-slate-800/90 border border-white/10 rounded-xl shadow-2xl hidden overflow-hidden"></div>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <select id="lectureSelect" class="px-3 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white text-sm flex-1 focus:ring-2 focus:ring-indigo-500/50 focus:outline-none" onchange="filterData()">
+                        <option value="all" class="bg-slate-800 text-white">講義名</option>
+                    </select>
+                    <select id="gradeSelect" class="px-3 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white text-sm focus:ring-2 focus:ring-indigo-500/50 focus:outline-none" onchange="filterData()">
+                        <option value="all" class="bg-slate-800 text-white">学年</option>
+                    </select>
+                    <select id="sortSelect" class="px-3 py-2.5 bg-slate-900/60 rounded-xl border border-white/10 text-white text-sm focus:ring-2 focus:ring-indigo-500/50 focus:outline-none" onchange="filterData()">
+                        <option value="授業日_desc" class="bg-slate-800 text-white">授業日 (新しい順)</option>
+                        <option value="授業日_asc" class="bg-slate-800 text-white">授業日 (古い順)</option>
+                        <option value="タイトル_asc" class="bg-slate-800 text-white">タイトル (昇順)</option>
+                        <option value="講義名_asc" class="bg-slate-800 text-white">講義名 (昇順)</option>
+                        <option value="講義名_desc" class="bg-slate-800 text-white">講義名 (降順)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center px-1">
+                <div class="text-sm text-slate-300">
+                    <span id="filteredCount" class="font-bold text-indigo-400">0</span> 件表示
+                </div>
+                <div class="flex bg-slate-800/50 border border-white/10 rounded-lg p-1 backdrop-blur-sm">
+                    <button onclick="setViewMode('grid')" id="gridBtn" class="p-1.5 rounded text-indigo-300 bg-indigo-500/20 shadow-sm"><i data-lucide="layout-grid" class="w-4 h-4"></i></button>
+                    <button onclick="setViewMode('list')" id="listBtn" class="p-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors"><i data-lucide="list" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+
+            <!-- Cards Grid container -->
+            <div id="cardsGrid" class="grid gap-4 sm:gap-6"></div>
         </div>
-        <div class="flex bg-slate-800/50 border border-white/10 rounded-lg p-1 backdrop-blur-sm">
-          <button onclick="setViewMode('grid')" id="gridBtn" class="p-1.5 rounded text-indigo-300 bg-indigo-500/20 shadow-sm"><i data-lucide="layout-grid" class="w-4 h-4"></i></button>
-          <button onclick="setViewMode('list')" id="listBtn" class="p-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors"><i data-lucide="list" class="w-4 h-4"></i></button>
+    </main>
+
+    <footer class="mt-16 relative z-10">
+        <div class="mt-8 pt-8 border-t border-white/10 text-center">
+            <div class="h-20"></div>
+            <p id="journey-text" class="text-sm text-slate-400" data-ja="学びの旅は、ここから始まる・・・">
+                <span>Your journey of learning begins here.</span>
+            </p>
+            <p class="mt-1 text-xs text-slate-500">&copy; AfterEffects_OK All Rights Reserved.</p>
+            <div class="h-40"></div>
         </div>
-      </div>
+    </footer>
 
-      <!-- Cards Grid container -->
-      <div id="cardsGrid" class="grid gap-4 sm:gap-6"></div>
-    </div>
-  </main>
+    <script>
+        const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz2m07NC9dVQIOQ-V_N0WBDlAypPhOCMUgOxcZrqeOvHOmOk3EyYu5Mya8BG8HzG6gj/exec";
+        
+        let rawArchiveData = [], currentFilterData = [], viewMode = 'grid';
 
-  <footer class="mt-16 relative z-10">
-    <div class="mt-8 pt-8 border-t border-white/10 text-center">
-        <div class="h-20"></div>
-        <p id="journey-text" class="text-sm text-slate-400" data-ja="学びの旅は、ここから始まる・・・">
-            <span>Your journey of learning begins here.</span>
-        </p>
-        <p class="mt-1 text-xs text-slate-500">&copy; AfterEffects_OK All Rights Reserved.</p>
-        <div class="h-40"></div>
-    </div>
-  </footer>
-
-  <script>
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz2m07NC9dVQIOQ-V_N0WBDlAypPhOCMUgOxcZrqeOvHOmOk3EyYu5Mya8BG8HzG6gj/exec"; 
-
-    //***************************************************************************
-    const TARGET_DISCIPLINE_ID = "f6765d6d"; //　フィルタリングするID学科を入れてください　映像音響：f6765d6d　　DX：619c96cf 
-    //***************************************************************************
-
-    let rawArchiveData = [], currentFilterData = [], viewMode = 'grid';
-
-    // Search input handler
-    function handleSearchInput() {
-      const val = document.getElementById('searchInput').value.toLowerCase();
-      const sugDiv = document.getElementById('suggestions');
-      if (!val) { sugDiv.classList.add('hidden'); filterData(); return; }
-      
-      const set = new Set();
-      rawArchiveData.forEach(i => {
-        [i['タイトル'], i['講義名']].forEach(t => { if (t && t.toLowerCase().includes(val)) set.add(t); });
-        if (i['検索タグ']) {
-          i['検索タグ'].split(',').forEach(tag => {
-            const t = tag.trim();
-            if (t && t.toLowerCase().includes(val)) set.add(t);
-          });
+        function handleSearchInput() {
+            const val = document.getElementById('searchInput').value.toLowerCase();
+            const sugDiv = document.getElementById('suggestions');
+            if (!val) {
+                sugDiv.classList.add('hidden');
+                filterData();
+                return;
+            }
+            const set = new Set();
+            rawArchiveData.forEach(i => {
+                [i['タイトル'], i['講義名']].forEach(t => {
+                    if (t && t.toLowerCase().includes(val)) set.add(t);
+                });
+                if (i['検索タグ']) {
+                    i['検索タグ'].split(',').forEach(tag => {
+                        const t = tag.trim();
+                        if (t && t.toLowerCase().includes(val)) set.add(t);
+                    });
+                }
+            });
+            const list = Array.from(set).slice(0, 8);
+            if (list.length > 0) {
+                sugDiv.innerHTML = list.map(s => `<div class="px-4 py-2 hover:bg-slate-700/50 cursor-pointer text-sm text-slate-200 border-b border-white/10 last:border-b-0 transition-colors" onclick="selectSuggestion('${s}')">${s}</div>`).join('');
+                sugDiv.classList.remove('hidden');
+            } else {
+                sugDiv.classList.add('hidden');
+            }
+            filterData();
         }
-      });
-      
-      const list = Array.from(set).slice(0, 8);
-      if (list.length > 0) {
-        sugDiv.innerHTML = list.map(s => `<div class="px-4 py-2 hover:bg-slate-700/50 cursor-pointer text-sm text-slate-200 border-b border-white/10 last:border-b-0 transition-colors" onclick="selectSuggestion('${s}')">${s}</div>`).join('');
-        sugDiv.classList.remove('hidden');
-      } else { sugDiv.classList.add('hidden'); }
-      filterData();
-    }
 
-    function selectSuggestion(val) {
-      document.getElementById('searchInput').value = val;
-      document.getElementById('suggestions').classList.add('hidden');
-      filterData();
-    }
+        function selectSuggestion(val) {
+            document.getElementById('searchInput').value = val;
+            document.getElementById('suggestions').classList.add('hidden');
+            filterData();
+        }
 
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#searchInput') && !e.target.closest('#suggestions')) {
-        document.getElementById('suggestions').classList.add('hidden');
-      }
-    });
-
-    function getThumbUrl(item) {
-      return item["ダイジェストフラグ"] === "Spotify" ? "https://raw.githubusercontent.com/AfterEffects-OK/PortalSite/main/Spotify%E3%82%B5%E3%83%A0%E3%83%8D%E3%82%A4%E3%83%AB.png" : item['サムネイル'];
-    }
-
-    // Dark mode compatible tags
-    function getGradeTag(grade) {
-      if (grade?.includes('1年')) return '<span class="text-xs sm:text-sm whitespace-nowrap bg-blue-500/20 border border-blue-500/30 text-blue-300 px-2 py-0.5 rounded font-bold">' + grade + '</span>';
-      if (grade?.includes('2年')) return '<span class="text-xs sm:text-sm whitespace-nowrap bg-orange-500/20 border border-orange-500/30 text-orange-300 px-2 py-0.5 rounded font-bold">' + grade + '</span>';
-      return '<span class="text-xs sm:text-sm whitespace-nowrap bg-slate-700/50 border border-slate-600 text-slate-300 px-2 py-0.5 rounded font-bold">' + (grade || '学年') + '</span>';
-    }
-
-    function getStatusTag(status) {
-      const colors = { '公開': 'emerald', '限定公開': 'amber', '非公開': 'rose' };
-      const color = colors[status] || 'slate';
-      return `<span class="text-xs sm:text-sm whitespace-nowrap bg-${color}-500/20 border border-${color}-500/30 text-${color}-300 px-2 py-0.5 rounded font-bold">${status || '未設定'}</span>`;
-    }
-
-    function updateFilters() {
-      const lectureSelect = document.getElementById('lectureSelect');
-      const gradeSelect = document.getElementById('gradeSelect');
-      const lectures = [...new Set(rawArchiveData.map(i => i["講義名"]).filter(Boolean))];
-      const grades = [...new Set(rawArchiveData.map(i => i["対象学年"]).filter(Boolean))];
-      lectures.forEach(l => {
-          const opt = new Option(l, l);
-          opt.className = "bg-slate-800 text-white";
-          lectureSelect.add(opt);
-      });
-      grades.forEach(g => {
-          if(g) {
-              const opt = new Option(g, g);
-              opt.className = "bg-slate-800 text-white";
-              gradeSelect.add(opt);
-          }
-      });
-    }
-
-    function filterData() {
-      const searchVal = document.getElementById('searchInput').value.toLowerCase();
-      const lectureVal = document.getElementById('lectureSelect').value;
-      const gradeVal = document.getElementById('gradeSelect').value;
-      const sortVal = document.getElementById('sortSelect').value;
-      
-      const now = new Date();
-      const currentYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-      const startOfFiscalYear = new Date(`${currentYear}-04-01`).getTime();
-      const endOfFiscalYear = new Date(`${currentYear + 1}-03-31T23:59:59`).getTime();
-      
-      currentFilterData = rawArchiveData.filter(i => {
-        const itemDate = new Date(i["授業日"]).getTime();
-        const searchTarget = `${i["タイトル"]||''} ${i["講義名"]||''} ${i["検索タグ"]||''}`.toLowerCase();
-        // ID学科による制限を外し、年度・検索・講義・学年のみでフィルタリング
-        return (itemDate >= startOfFiscalYear && itemDate <= endOfFiscalYear) && searchTarget.includes(searchVal) && (lectureVal === 'all' || i["講義名"] === lectureVal) && (gradeVal === 'all' || i["対象学年"] === gradeVal);
-    });
-
-      currentFilterData.sort((a, b) => {
-        if (sortVal === '授業日_desc') return new Date(b["授業日"]) - new Date(a["授業日"]);
-        if (sortVal === '授業日_asc') return new Date(a["授業日"]) - new Date(b["授業日"]);
-        if (sortVal === 'タイトル_asc') return (a["タイトル"]||'').localeCompare(b["タイトル"]||'');
-        if (sortVal === '講義名_asc') return (a["講義名"]||'').localeCompare(b["講義名"]||'');
-        if (sortVal === '講義名_desc') return (b["講義名"]||'').localeCompare(a["講義名"]||'');
-        return 0;
-      });
-      renderCards(currentFilterData);
-    }
-
-    async function connectApi(apiEndpoint) {
-      try {
-        const response = await fetch(apiEndpoint);
-        rawArchiveData = await response.json();
-        updateFilters();
-        filterData();
-        document.getElementById('statusArea').classList.add('hidden');
-        document.getElementById('contentArea').classList.remove('hidden');
-        setViewMode(window.innerWidth <= 768 ? 'list' : 'grid');
-      } catch (e) {
-        document.getElementById('statusTitle').textContent = "データ取得エラー";
-        document.getElementById('errorMsg').textContent = "データを読み込めませんでした。";
-      }
-    }
-
-    function setViewMode(mode) {
-      viewMode = mode;
-      document.getElementById('gridBtn').className = mode === 'grid' ? 'p-1.5 rounded text-indigo-300 bg-indigo-500/20 shadow-sm border border-indigo-500/30' : 'p-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors';
-      document.getElementById('listBtn').className = mode === 'list' ? 'p-1.5 rounded text-indigo-300 bg-indigo-500/20 shadow-sm border border-indigo-500/30' : 'p-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors';
-      renderCards(currentFilterData);
-    }
-
-    // Dark mode compatible links
-    function createLink(href, color, icon, label) {
-      if (!href || href.trim() === "") return `<span class="flex items-center gap-1 text-slate-500 text-xs px-1 py-0.5 whitespace-nowrap"><i data-lucide="${icon}" class="w-4 h-4"></i> -</span>`;
-      return `<a href="${href}" target="_blank" class="flex items-center gap-1.5 text-${color}-300 hover:bg-${color}-500/20 px-2 py-1 rounded-lg transition text-xs sm:text-sm font-bold border border-transparent hover:border-${color}-500/30 whitespace-nowrap"><i data-lucide="${icon}" class="w-4 h-4"></i> ${label}</a>`;
-    }
-
-    function renderCards(data) {
-      document.getElementById('filteredCount').textContent = data.length;
-      const grid = document.getElementById('cardsGrid');
-      grid.className = viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid gap-3";
-      
-      if (data.length === 0) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 glass-panel rounded-2xl"><p>該当する講義が見つかりませんでした。</p></div>`;
-      } else {
-        const fragment = document.createDocumentFragment();
-        data.forEach(item => {
-          const div = document.createElement('div');
-          const ytLink = item["YouTubeリンク"] || "";
-          
-          const targetDateStr = item["タイムスタンプ"] || item["授業日"];
-          let isNewItem = false;
-          if (targetDateStr) {
-            const targetDate = new Date(targetDateStr).getTime();
-            const now = new Date().getTime();
-            const diffDays = (now - targetDate) / (1000 * 60 * 60 * 24);
-            isNewItem = diffDays >= 0 && diffDays <= 7;
-          }
-          const newBadgeHtml = isNewItem ? `<span class="new-badge">NEW</span>` : '';
-          
-          // ホバー時のborderを黄色に変更
-          const baseCardClass = "glass-panel rounded-2xl overflow-hidden relative group transition-all duration-300 hover:border-yellow-300 hover:shadow-lg hover:shadow-yellow-500/20";
-          const borderClass = isNewItem ? 'border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : '';
-
-          if (viewMode === 'grid') {
-            div.className = `${baseCardClass} ${borderClass} flex flex-col`;
-            div.innerHTML = `
-                <a href="${ytLink}" target="_blank" class="aspect-video bg-slate-800 block relative overflow-hidden">
-                    <img src="${getThumbUrl(item)}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='https://placehold.co/400x225/1e293b/94a3b8?text=No+Image'">
-                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 thumb-overlay">
-                        <i data-lucide="play" class="w-12 h-12 text-white fill-current drop-shadow-lg"></i>
-                    </div>
-                </a>
-                <div class="p-4 flex-grow flex flex-col">
-                    <div class="flex gap-2 mb-3 flex-wrap">
-                        ${getStatusTag(item["公開ステータス"])}
-                        <span class="text-xs sm:text-sm whitespace-nowrap bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded font-bold">${item["講義名"] || "講義"}</span>
-                        ${getGradeTag(item["対象学年"])}
-                        ${newBadgeHtml}
-                    </div>
-                    <h3 class="font-bold text-slate-100 line-clamp-2 text-lg group-hover:text-yellow-300 transition-all duration-300 group-hover:line-clamp-none mb-2">${item["タイトル"]||''}</h3>
-                </div>
-                <div class="px-3 py-2.5 bg-slate-900/50 border-t border-white/5 flex flex-wrap gap-2 text-xs font-bold mt-auto">
-                    ${createLink(item["AI要約リンク"], "indigo", "file-text", "AI要約レポート")}
-                    ${createLink(item["AI音声概要リンク"], "emerald", "volume-2", "音声概要")}
-                </div>`;
-          } else {
-            div.className = `${baseCardClass} ${borderClass} p-2 sm:p-3 flex gap-3 sm:gap-4`;
-            div.innerHTML = `
-                <div class="w-28 sm:w-48 flex-shrink-0 flex flex-col gap-1.5">
-                    <a href="${ytLink}" target="_blank" class="relative overflow-hidden group rounded-xl bg-slate-800 aspect-video self-start w-full">
-                        <img src="${getThumbUrl(item)}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='https://placehold.co/192x112/1e293b/94a3b8?text=No+Image'">
-                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 thumb-overlay">
-                            <i data-lucide="play" class="w-8 sm:w-10 h-8 sm:h-10 text-white fill-current drop-shadow-lg"></i>
-                        </div>
-                    </a>
-                    <div class="flex items-center gap-1.5 sm:hidden">
-                        ${getStatusTag(item["公開ステータス"])}
-                        ${newBadgeHtml}
-                    </div>
-                </div>
-                <div class="flex-grow flex flex-col justify-start min-w-0 py-0.5">
-                    <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-1.5">
-                        <div class="hidden sm:block">
-                            ${getStatusTag(item["公開ステータス"])}
-                        </div>
-                        <span class="text-xs sm:text-sm whitespace-nowrap bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded font-bold">${item["講義名"] || "講義"}</span>
-                        ${getGradeTag(item["対象学年"])}
-                        <div class="hidden sm:block">
-                            ${newBadgeHtml}
-                        </div>
-                    </div>
-                    <div class="text-sm sm:text-xl font-bold text-slate-100 line-clamp-2 cursor-pointer group-hover:text-yellow-300 transition-all duration-300 group-hover:line-clamp-none mb-1" onclick="window.open('${ytLink}', '_blank')">${item["タイトル"]||''}</div>
-                    <div class="flex gap-2 sm:gap-3 flex-wrap mt-auto">
-                        ${createLink(item["AI要約リンク"], "indigo", "file-text", "AI要約レポート")}
-                        ${createLink(item["AI音声概要リンク"], "emerald", "volume-2", "音声概要")}
-                    </div>
-                </div>`;
-          }
-          fragment.appendChild(div);
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#searchInput') && !e.target.closest('#suggestions')) {
+                document.getElementById('suggestions').classList.add('hidden');
+            }
         });
-        grid.innerHTML = '';
-        grid.appendChild(fragment);
-        lucide.createIcons();
-      }
-    }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      lucide.createIcons();
-      connectApi(GAS_API_URL);
-    });
-  </script>
+        function getThumbUrl(item) {
+            return item["ダイジェストフラグ"] === "Spotify" ? "https://raw.githubusercontent.com/AfterEffects-OK/PortalSite/main/Spotify%E3%82%B5%E3%83%A0%E3%83%8D%E3%82%A4%E3%83%AB.png" : item['サムネイル'];
+        }
+
+        function getGradeTag(grade) {
+            if (grade?.includes('1年')) return '<span class="text-xs sm:text-sm whitespace-nowrap bg-blue-500/20 border border-blue-500/30 text-blue-300 px-2 py-0.5 rounded font-bold">' + grade + '</span>';
+            if (grade?.includes('2年')) return '<span class="text-xs sm:text-sm whitespace-nowrap bg-orange-500/20 border border-orange-500/30 text-orange-300 px-2 py-0.5 rounded font-bold">' + grade + '</span>';
+            return '<span class="text-xs sm:text-sm whitespace-nowrap bg-slate-700/50 border border-slate-600 text-slate-300 px-2 py-0.5 rounded font-bold">' + (grade || '学年') + '</span>';
+        }
+
+        function getStatusTag(status) {
+            const colors = { '公開': 'emerald', '限定公開': 'amber', '非公開': 'rose' };
+            const color = colors[status] || 'slate';
+            return `<span class="text-xs sm:text-sm whitespace-nowrap bg-${color}-500/20 border border-${color}-500/30 text-${color}-300 px-2 py-0.5 rounded font-bold">${status || '未設定'}</span>`;
+        }
+
+        function updateFilters() {
+            const lectureSelect = document.getElementById('lectureSelect');
+            const gradeSelect = document.getElementById('gradeSelect');
+            const lectures = [...new Set(rawArchiveData.map(i => i["講義名"]).filter(Boolean))];
+            const grades = [...new Set(rawArchiveData.map(i => i["対象学年"]).filter(Boolean))];
+            lectures.forEach(l => {
+                const opt = new Option(l, l);
+                opt.className = "bg-slate-800 text-white";
+                lectureSelect.add(opt);
+            });
+            grades.forEach(g => {
+                if(g) {
+                    const opt = new Option(g, g);
+                    opt.className = "bg-slate-800 text-white";
+                    gradeSelect.add(opt);
+                }
+            });
+        }
+
+        function filterData() {
+            const searchVal = document.getElementById('searchInput').value.toLowerCase();
+            const lectureVal = document.getElementById('lectureSelect').value;
+            const gradeVal = document.getElementById('gradeSelect').value;
+            const sortVal = document.getElementById('sortSelect').value;
+            
+            const now = new Date();
+            const currentYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+            const startOfFiscalYear = new Date(`${currentYear}-04-01`).getTime();
+            const endOfFiscalYear = new Date(`${currentYear + 1}-03-31T23:59:59`).getTime();
+
+            currentFilterData = rawArchiveData.filter(i => {
+                const itemDate = new Date(i["授業日"]).getTime();
+                const searchTarget = `${i["タイトル"]||''} ${i["講義名"]||''} ${i["検索タグ"]||''}`.toLowerCase();
+                return (itemDate >= startOfFiscalYear && itemDate <= endOfFiscalYear) && searchTarget.includes(searchVal) && (lectureVal === 'all' || i["講義名"] === lectureVal) && (gradeVal === 'all' || i["対象学年"] === gradeVal);
+            });
+
+            currentFilterData.sort((a, b) => {
+                if (sortVal === '授業日_desc') return new Date(b["授業日"]) - new Date(a["授業日"]);
+                if (sortVal === '授業日_asc') return new Date(a["授業日"]) - new Date(b["授業日"]);
+                if (sortVal === 'タイトル_asc') return (a["タイトル"]||'').localeCompare(b["タイトル"]||'');
+                if (sortVal === '講義名_asc') return (a["講義名"]||'').localeCompare(b["講義名"]||'');
+                if (sortVal === '講義名_desc') return (b["講義名"]||'').localeCompare(a["講義名"]||'');
+                return 0;
+            });
+
+            renderCards(currentFilterData);
+        }
+
+        async function connectApi(apiEndpoint) {
+            try {
+                const response = await fetch(apiEndpoint);
+                rawArchiveData = await response.json();
+                updateFilters();
+                filterData();
+                document.getElementById('statusArea').classList.add('hidden');
+                document.getElementById('contentArea').classList.remove('hidden');
+                setViewMode(window.innerWidth <= 768 ? 'list' : 'grid');
+            } catch (e) {
+                document.getElementById('statusTitle').textContent = "データ取得エラー";
+                document.getElementById('errorMsg').textContent = "データを読み込めませんでした。";
+            }
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('gridBtn').className = mode === 'grid' ? 'p-1.5 rounded text-indigo-300 bg-indigo-500/20 shadow-sm border border-indigo-500/30' : 'p-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors';
+            document.getElementById('listBtn').className = mode === 'list' ? 'p-1.5 rounded text-indigo-300 bg-indigo-500/20 shadow-sm border border-indigo-500/30' : 'p-1.5 rounded text-slate-400 hover:text-slate-200 transition-colors';
+            renderCards(currentFilterData);
+        }
+
+        function createLink(href, color, icon, label) {
+            if (!href || href.trim() === "") return `<span class="flex items-center gap-1 text-slate-500 text-xs px-1 py-0.5 whitespace-nowrap"><i data-lucide="${icon}" class="w-4 h-4"></i> -</span>`;
+            return `<a href="${href}" target="_blank" class="flex items-center gap-1.5 text-${color}-300 hover:bg-${color}-500/20 px-2 py-1 rounded-lg transition text-xs sm:text-sm font-bold border border-transparent hover:border-${color}-500/30 whitespace-nowrap"><i data-lucide="${icon}" class="w-4 h-4"></i> ${label}</a>`;
+        }
+
+        function renderCards(data) {
+            document.getElementById('filteredCount').textContent = data.length;
+            const grid = document.getElementById('cardsGrid');
+            grid.className = viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid gap-3";
+
+            if (data.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 glass-panel rounded-2xl"><p>該当する講義が見つかりませんでした。</p></div>`;
+            } else {
+                const fragment = document.createDocumentFragment();
+                data.forEach(item => {
+                    const div = document.createElement('div');
+                    const ytLink = item["YouTubeリンク"] || "";
+                    const targetDateStr = item["タイムスタンプ"] || item["授業日"];
+                    let isNewItem = false;
+                    if (targetDateStr) {
+                        const targetDate = new Date(targetDateStr).getTime();
+                        const now = new Date().getTime();
+                        const diffDays = (now - targetDate) / (1000 * 60 * 60 * 24);
+                        isNewItem = diffDays >= 0 && diffDays <= 7;
+                    }
+                    const newBadgeHtml = isNewItem ? `<span class="new-badge">NEW</span>` : '';
+                    const baseCardClass = "glass-panel rounded-2xl overflow-hidden relative group transition-all duration-300 hover:border-yellow-300 hover:shadow-lg hover:shadow-yellow-500/20";
+                    const borderClass = isNewItem ? 'border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : '';
+
+                    if (viewMode === 'grid') {
+                        div.className = `${baseCardClass} ${borderClass} flex flex-col`;
+                        div.innerHTML = `
+                            <a href="${ytLink}" target="_blank" class="aspect-video bg-slate-800 block relative overflow-hidden">
+                                <img src="${getThumbUrl(item)}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='https://placehold.co/400x225/1e293b/94a3b8?text=No+Image'">
+                                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 thumb-overlay">
+                                    <i data-lucide="play" class="w-12 h-12 text-white fill-current drop-shadow-lg"></i>
+                                </div>
+                            </a>
+                            <div class="p-4 flex-grow flex flex-col">
+                                <div class="flex gap-2 mb-3 flex-wrap">
+                                    ${getStatusTag(item["公開ステータス"])}
+                                    <span class="text-xs sm:text-sm whitespace-nowrap bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded font-bold">${item["講義名"] || "講義"}</span>
+                                    ${getGradeTag(item["対象学年"])}
+                                    ${newBadgeHtml}
+                                </div>
+                                <h3 class="font-bold text-slate-100 line-clamp-2 text-lg group-hover:text-yellow-300 transition-all duration-300 group-hover:line-clamp-none mb-2">${item["タイトル"]||''}</h3>
+                            </div>
+                            <div class="px-3 py-2.5 bg-slate-900/50 border-t border-white/5 flex flex-wrap gap-2 text-xs font-bold mt-auto">
+                                ${createLink(item["AI要約リンク"], "indigo", "file-text", "AI要約レポート")}
+                                ${createLink(item["AI音声概要リンク"], "emerald", "volume-2", "音声概要")}
+                            </div>`;
+                    } else {
+                        div.className = `${baseCardClass} ${borderClass} p-2 sm:p-3 flex gap-3 sm:gap-4`;
+                        div.innerHTML = `
+                            <div class="w-28 sm:w-48 flex-shrink-0 flex flex-col gap-1.5">
+                                <a href="${ytLink}" target="_blank" class="relative overflow-hidden group rounded-xl bg-slate-800 aspect-video self-start w-full">
+                                    <img src="${getThumbUrl(item)}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.src='https://placehold.co/192x112/1e293b/94a3b8?text=No+Image'">
+                                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 thumb-overlay">
+                                        <i data-lucide="play" class="w-8 sm:w-10 h-8 sm:h-10 text-white fill-current drop-shadow-lg"></i>
+                                    </div>
+                                </a>
+                                <div class="flex items-center gap-1.5 sm:hidden">
+                                    ${getStatusTag(item["公開ステータス"])}
+                                    ${newBadgeHtml}
+                                </div>
+                            </div>
+                            <div class="flex-grow flex flex-col justify-start min-w-0 py-0.5">
+                                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap mb-1.5">
+                                    <div class="hidden sm:block">
+                                        ${getStatusTag(item["公開ステータス"])}
+                                    </div>
+                                    <span class="text-xs sm:text-sm whitespace-nowrap bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded font-bold">${item["講義名"] || "講義"}</span>
+                                    ${getGradeTag(item["対象学年"])}
+                                    <div class="hidden sm:block">
+                                        ${newBadgeHtml}
+                                    </div>
+                                </div>
+                                <div class="text-sm sm:text-xl font-bold text-slate-100 line-clamp-2 cursor-pointer group-hover:text-yellow-300 transition-all duration-300 group-hover:line-clamp-none mb-1" onclick="window.open('${ytLink}', '_blank')">${item["タイトル"]||''}</div>
+                                <div class="flex gap-2 sm:gap-3 flex-wrap mt-auto">
+                                    ${createLink(item["AI要約リンク"], "indigo", "file-text", "AI要約レポート")}
+                                    ${createLink(item["AI音声概要リンク"], "emerald", "volume-2", "音声概要")}
+                                </div>
+                            </div>`;
+                    }
+                    fragment.appendChild(div);
+                });
+                grid.innerHTML = '';
+                grid.appendChild(fragment);
+                lucide.createIcons();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            connectApi(GAS_API_URL);
+        });
+    </script>
 </body>
 </html>
