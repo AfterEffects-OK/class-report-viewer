@@ -92,7 +92,6 @@
 
     <!-- アプリケーションスクリプト -->
     <script>
-        // ★ステップ1で取得したGASのウェブアプリURLをここにペーストしてください
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxXwaNQN5Ur3O_srGG0_7E61dO41L8KcWPUWxjHVLhh1WrwtHXWwkKEM3zI3YNN9B5T/exec";
 
         let driveData = { documents: [] };
@@ -124,13 +123,10 @@
 
             try {
                 document.getElementById('app-subtitle').textContent = "Googleドライブから同期中...";
-                
-                // 【修正】CORSやネットワークブロックを回避するためのオプションを追加
                 const response = await fetch(GAS_API_URL, {
                     method: 'GET',
                     redirect: 'follow'
                 });
-                
                 const data = await response.json();
                 console.log("GASからのレスポンス:", data);
 
@@ -146,30 +142,17 @@
                 }
             } catch (err) {
                 console.error("ドライブからの取得に失敗しました:", err);
-                // エラー時でもサンプルモードに勝手に落とさず、原因がわかるようにする
                 document.getElementById('app-subtitle').textContent = "接続エラー (コンソールを確認してください)";
             }
         }
 
-        // 接続前のフォールバック（現在確認できている実際のフォルダ内ドキュメント）
         function loadFallbackData() {
             driveData = {
                 documents: [
                     {
                         id: "doc-1",
                         title: "授業レポート 2026【編集Ⅰ(前期)_5b229061】",
-                        content: `
-                            <h2 class="text-2xl font-bold mb-4 text-indigo-600 dark:text-indigo-400">授業レポート 2026【編集Ⅰ(前期)_5b229061】</h2>
-                            <p class="mb-4 text-slate-600 dark:text-slate-300">本ドキュメントには、2026年度前期の各授業日における詳細な講義レポートおよび要約が記載されています。</p>
-                        `
-                    },
-                    {
-                        id: "doc-2",
-                        title: "授業レポート 2026【 編集Ⅰ(後期)_7ed9ad55】",
-                        content: `
-                            <h2 class="text-2xl font-bold mb-4 text-indigo-600 dark:text-indigo-400">授業レポート 2026【 編集Ⅰ(後期)_7ed9ad55】</h2>
-                            <p class="mb-4 text-slate-600 dark:text-slate-300">後期におけるオンライン講義や演習の進行状況について記録されています。</p>
-                        `
+                        content: `<h2 class="text-2xl font-bold mb-4 text-indigo-600 dark:text-indigo-400">授業レポート 2026【編集Ⅰ(前期)_5b229061】</h2><p class="mb-4 text-slate-600 dark:text-slate-300">サンプルデータです。</p>`
                     }
                 ]
             };
