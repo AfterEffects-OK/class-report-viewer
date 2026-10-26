@@ -303,12 +303,9 @@
       currentFilterData = rawArchiveData.filter(i => {
         const itemDate = new Date(i["授業日"]).getTime();
         const searchTarget = `${i["タイトル"]||''} ${i["講義名"]||''} ${i["検索タグ"]||''}`.toLowerCase();
-        return (i["ID学科"] === "" || i["ID学科"] === TARGET_DISCIPLINE_ID) &&
-               (itemDate >= startOfFiscalYear && itemDate <= endOfFiscalYear) &&
-               searchTarget.includes(searchVal) && 
-               (lectureVal === 'all' || i["講義名"] === lectureVal) && 
-               (gradeVal === 'all' || i["対象学年"] === gradeVal);
-      });
+        // ID学科による制限を外し、年度・検索・講義・学年のみでフィルタリング
+        return (itemDate >= startOfFiscalYear && itemDate <= endOfFiscalYear) && searchTarget.includes(searchVal) && (lectureVal === 'all' || i["講義名"] === lectureVal) && (gradeVal === 'all' || i["対象学年"] === gradeVal);
+    });
 
       currentFilterData.sort((a, b) => {
         if (sortVal === '授業日_desc') return new Date(b["授業日"]) - new Date(a["授業日"]);
